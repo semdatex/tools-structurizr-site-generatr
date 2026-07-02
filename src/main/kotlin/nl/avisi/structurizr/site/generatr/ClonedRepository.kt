@@ -4,6 +4,7 @@ import org.eclipse.jgit.api.CreateBranchCommand
 import org.eclipse.jgit.api.Git
 import org.eclipse.jgit.api.ListBranchCommand
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder
+import org.eclipse.jgit.transport.TagOpt
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 import java.io.File
 
@@ -23,6 +24,7 @@ class ClonedRepository(
 
         if (cloneDir.isDirectory) {
             Git(repo).pull()
+                .setTagOpt(TagOpt.FETCH_TAGS)
                 .setCredentialsProvider(credentialsProvider)
                 .call()
         } else {
@@ -55,5 +57,17 @@ class ClonedRepository(
             .map { it.name.toString().substringAfter("/remotes/origin/") }
             .onEach { println("Found the following branch: $it") }
             .filter { it !in excludeBranches }
+
+    fun checkoutTag(tag: String) {
+        Git(repo).checkout()
+            .setName("refs/tags/$tag")
+            .call()
+    }
+
+    fun getTagNames(excludeTags: List<String>) =
+        Git(repo).tagList().call()
+            .map { it.name.toString().substringAfter("refs/tags/") }
+            .onEach { println("Found the following tag: $it") }
+            .filter { it !in excludeTags }
 
 }

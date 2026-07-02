@@ -10,6 +10,8 @@ class HeaderBarViewModel(pageViewModel: PageViewModel, generatorContext: Generat
     val searchLink = LinkViewModel(pageViewModel, generatorContext.workspace.name, SearchViewModel.url())
     val branches = generatorContext.branches
         .map { BranchHomeLinkViewModel(pageViewModel, it) }
+    val tags = generatorContext.tags
+        .map { BranchHomeLinkViewModel(pageViewModel, it) }
     val currentBranch = generatorContext.currentBranch
     val version = generatorContext.version
     val allowToggleTheme = pageViewModel.allowToggleTheme
