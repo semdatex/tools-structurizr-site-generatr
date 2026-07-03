@@ -69,10 +69,11 @@ fun BODY.pageHeader(viewModel: HeaderBarViewModel) {
                                 +"Toggle theme"
                             }
                         }
-                        hr(classes = "navbar-divider")
-                        div(classes = "navbar-item has-text-grey-light") {
-                            span { +"v" }
-                            span { +viewModel.version }
+                        if (viewModel.showVersion) {
+                            hr(classes = "navbar-divider")
+                            div(classes = "navbar-item has-text-grey-light") {
+                                +viewModel.version
+                            }
                         }
                     }
                 }

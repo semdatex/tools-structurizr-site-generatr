@@ -71,6 +71,17 @@ class HeaderBarViewModelTest : ViewModelTest() {
         val viewModel = HeaderBarViewModel(pageViewModel, generatorContext)
 
         assertThat(viewModel.version).isEqualTo("0.42.1337")
+        assertThat(viewModel.showVersion).isTrue()
+    }
+
+    @Test
+    fun `no version when blank`() {
+        val contextWithoutVersion = generatorContext(
+            "some workspace", branches = listOf("main", "branch-2"), version = ""
+        )
+        val viewModel = HeaderBarViewModel(pageViewModel, contextWithoutVersion)
+
+        assertThat(viewModel.showVersion).isFalse()
     }
 
     @Test

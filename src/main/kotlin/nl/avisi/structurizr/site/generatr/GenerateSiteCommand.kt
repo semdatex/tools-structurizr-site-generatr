@@ -44,8 +44,8 @@ class GenerateSiteCommand : Subcommand(
     ).default("master")
     private val version by option(
         ArgType.String, "version", "v",
-        "The version of the site"
-    ).default("0.0.0")
+        "The version of the site, shown as-is in the branch switcher. When omitted, no version is shown."
+    ).default("")
     private val outputDir by option(
         ArgType.String, "output-dir", "o",
         "Directory where the generated site will be stored. Will be created if it doesn't exist yet."

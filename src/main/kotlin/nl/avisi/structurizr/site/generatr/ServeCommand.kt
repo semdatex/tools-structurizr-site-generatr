@@ -81,7 +81,7 @@ class ServeCommand : Subcommand("serve", "Start a development server") {
                 generateDiagrams(workspace, exportDir)
                 println("Generating site...")
                 generateSite(
-                    "0.0.0",
+                    "",
                     workspace,
                     assetsDir?.let { File(it) },
                     File(siteDir),
