@@ -14,6 +14,7 @@ class HeaderBarViewModel(pageViewModel: PageViewModel, generatorContext: Generat
         .map { BranchHomeLinkViewModel(pageViewModel, it) }
     val currentBranch = generatorContext.currentBranch
     val version = generatorContext.version
+    val showVersion = version.isNotBlank()
     val allowToggleTheme = pageViewModel.allowToggleTheme
 
     private fun logoPath(generatorContext: GeneratorContext) =
