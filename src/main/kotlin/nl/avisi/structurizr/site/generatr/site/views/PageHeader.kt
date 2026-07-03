@@ -46,6 +46,20 @@ fun BODY.pageHeader(viewModel: HeaderBarViewModel) {
                                 +branchLink.title
                             }
                         }
+                        if (viewModel.tags.isNotEmpty()) {
+                            hr(classes = "navbar-divider")
+                            div(classes = "navbar-item has-text-grey-light") {
+                                +"Tags"
+                            }
+                            viewModel.tags.forEach { tagLink ->
+                                a(
+                                    classes = "navbar-item",
+                                    href = tagLink.relativeHref
+                                ) {
+                                    +tagLink.title
+                                }
+                            }
+                        }
                         if (viewModel.allowToggleTheme) {
                             hr(classes = "navbar-divider")
                             a(

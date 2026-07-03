@@ -45,7 +45,8 @@ is generated from the example workspace in this repository.
 - Include static assets in the generated site, which can be used in ADR's and documentation.
 - Generate a site from a Structurizr DSL model in a Git repository. Supports multiple branches, which makes it possible
   to for example maintain an actual state in `master` and one or more future states in feature branches. The generated
-  site includes diagrams for all valid configured or detected branches.
+  site includes diagrams for all valid configured or detected branches. Release tags can be included as well, so the
+  documentation of released versions stays browsable alongside the branches.
 - Include a version number in the generated site.
 
 ## Getting Started
@@ -224,6 +225,41 @@ structurizr-site-generatr generate-site
 ```
 
 Both the --branches and --exclude-branches options are comma separated lists and can contain multiple branch names.
+
+##### Including release tags
+
+In addition to branches, the generated site can include Git tags, which makes it possible to browse the
+architecture documentation of released versions. Tags appear in the branch switcher in a separate "Tags"
+section, sorted with the newest release first.
+
+To explicitly name the tags that you want to build sites from, use the --tags option:
+
+```shell
+structurizr-site-generatr generate-site
+    --git-url https://github.com/avisi-cloud/structurizr-site-generatr.git
+    --workspace-file docs/example/workspace.dsl
+    --assets-dir docs/example/assets
+    --all-branches
+    --tags v1.0.0,v1.1.0
+    --default-branch main
+```
+
+or include all tags found in the repository, optionally excluding specific ones:
+
+```shell
+structurizr-site-generatr generate-site
+    --git-url https://github.com/avisi-cloud/structurizr-site-generatr.git
+    --workspace-file docs/example/workspace.dsl
+    --assets-dir docs/example/assets
+    --all-branches
+    --all-tags
+    --exclude-tags v0.0.1
+    --default-branch main
+```
+
+Both the --tags and --exclude-tags options are comma separated lists and can contain multiple tag names.
+Tags that don't contain a valid Structurizr workspace are skipped, as are tags whose name collides with an
+included branch.
 
 ### Start a development web server around the generated website
 

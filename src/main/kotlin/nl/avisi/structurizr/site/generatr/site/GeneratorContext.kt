@@ -9,5 +9,6 @@ data class GeneratorContext(
     val currentBranch: String,
     val serving: Boolean,
     val svgFactory: (key: String, url: String) -> String?,
-    val legendSvgFactory: (key: String) -> String? = { null }
+    val legendSvgFactory: (key: String) -> String? = { null },
+    val tags: List<String> = emptyList()
 )

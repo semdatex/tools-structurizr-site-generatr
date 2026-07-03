@@ -18,8 +18,9 @@ abstract class ViewModelTest {
         workspaceName: String = "Workspace name",
         branches: List<String> = listOf("main"),
         currentBranch: String = "main",
-        version: String = "1.0.0"
-    ) = GeneratorContext(version, Workspace(workspaceName, ""), branches, currentBranch, false, svgFactory)
+        version: String = "1.0.0",
+        tags: List<String> = emptyList()
+    ) = GeneratorContext(version, Workspace(workspaceName, ""), branches, currentBranch, false, svgFactory, tags = tags)
 
     protected fun pageViewModel(pageHref: String = "/some-page") = object : PageViewModel(generatorContext()) {
         override val url = pageHref
