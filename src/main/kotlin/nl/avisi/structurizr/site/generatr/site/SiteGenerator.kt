@@ -133,6 +133,8 @@ private fun generateHtmlFiles(context: GeneratorContext, branchDir: File) {
         add { writeHtmlFile(branchDir, WorkspaceDecisionsPageViewModel(context)) }
         add { writeHtmlFile(branchDir, SoftwareSystemsPageViewModel(context)) }
         add { writeHtmlFile(branchDir, SearchViewModel(context)) }
+        if (SoftwareItemInventoryPageViewModel.enabled(context.workspace))
+            add { writeHtmlFile(branchDir, SoftwareItemInventoryPageViewModel(context)) }
 
         context.workspace.documentation.sections
             .filter { it.order != 1 }
@@ -231,6 +233,7 @@ private fun writeHtmlFile(exportDir: File, viewModel: PageViewModel) {
                 is HomePageViewModel -> homePage(viewModel)
                 is SearchViewModel -> searchPage(viewModel)
                 is SoftwareSystemsPageViewModel -> softwareSystemsPage(viewModel)
+                is SoftwareItemInventoryPageViewModel -> softwareItemInventoryPage(viewModel)
                 is SoftwareSystemHomePageViewModel -> softwareSystemHomePage(viewModel)
                 is SoftwareSystemContextPageViewModel -> softwareSystemContextPage(viewModel)
                 is SoftwareSystemContainerPageViewModel -> softwareSystemContainerPage(viewModel)

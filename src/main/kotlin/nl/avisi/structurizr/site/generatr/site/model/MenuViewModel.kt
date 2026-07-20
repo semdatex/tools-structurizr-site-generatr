@@ -12,6 +12,14 @@ class MenuViewModel(generatorContext: GeneratorContext, private val pageViewMode
         if (generatorContext.workspace.model.softwareSystems.isNotEmpty())
             yield(createMenuItem("Software Systems", SoftwareSystemsPageViewModel.url()))
 
+        if (SoftwareItemInventoryPageViewModel.enabled(generatorContext.workspace))
+            yield(
+                createMenuItem(
+                    SoftwareItemInventoryPageViewModel.title(generatorContext.workspace),
+                    SoftwareItemInventoryPageViewModel.url()
+                )
+            )
+
         generatorContext.workspace.documentation.sections
             .sortedBy { it.order }
             .drop(1)
