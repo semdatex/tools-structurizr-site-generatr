@@ -310,6 +310,9 @@ architecture model:
 | `generatr.site.nestGroups`              | Will show software systems in the left side navigator in collapsable groups                                                                                                                                                                                                                                                                      | `false`                        | `true`                                               |
 | `generatr.site.cdn`                     | Specifies the CDN base location for fetching NPM packages for browser runtime dependencies. Defaults to jsDelivr, but can be changed to e.g. an on-premise location.                                                                                                                                                                             | `https://cdn.jsdelivr.net/npm` | `https://cdn.my-company/npm`                         |
 | `generatr.site.theme`                   | Experimental: allows to force a light or dark theme or allows to switch between light and dark mode on the website with browser preference or menu item. Possible values are 'light', 'dark' or 'auto'. Note that the 'structurizr' exporter (see 'generatr.site.exporter' setting) generally works better for the dark theme.                   | `light`                        | `auto`                                               |
+| `generatr.site.inventory.selectorProperty` | Enables a workspace-wide "software item inventory" page listing every software system, container and component that carries the given element property. Useful for e.g. an IEC 62304 software item inventory with safety classifications, generated straight from the model.                                                                  |                                | `itemId`                                       |
+| `generatr.site.inventory.title`         | Title of the software item inventory page (also used as the menu entry).                                                                                                                                                                                                                                                                         | `Software Item Inventory`      | `Software Items (IEC 62304)`                         |
+| `generatr.site.inventory.columns`       | Columns of the inventory table: a comma-separated list of `elementPropertyKey\|Column Label` entries (label optional, defaults to the key). Each listed element property is rendered as one column; missing values render as "—".                                                                                                                | the selector property          | `itemId\|Item ID,classification\|Class`  |
 
 To control the behavior of views, apply the following properties:
 
@@ -319,6 +322,53 @@ To control the behavior of views, apply the following properties:
 
 See the included example for usage of some those properties in the
 [C4 architecture model example](https://github.com/avisi-cloud/structurizr-site-generatr/blob/main/docs/example/workspace.dsl#L163).
+
+## Software item inventory page (fork feature)
+
+> This is a fork-specific feature, not present in upstream `avisi-cloud/structurizr-site-generatr`.
+
+In addition to the diagrams, this fork can generate a **workspace-wide inventory table** that lists every element (software system, container **and** component) carrying a chosen element property, with one row per element and a configurable set of property columns. It is a generic mechanism: any per-element metadata that lives in the model can be surfaced as a sortable, linkable table page — for example an IEC 62304 software-item classification database, an ownership/team registry, or a data-sensitivity inventory.
+
+The data stays in the C4 model (as element `properties`); the table is derived from it on every build, so the model remains the single source of truth and the table can never drift from the diagrams.
+
+### Enabling it
+
+Set the properties in the workspace `views { properties { … } }` block:
+
+```
+workspace {
+    model {
+        softwareSystem "Orchestrator" {
+            properties {
+                "itemId"          "BE-201"
+                "classification"  "HSW-ESS"
+                "safetyClass"     "B"
+            }
+        }
+        // …
+    }
+    views {
+        properties {
+            // Any element with this property becomes a row. Enables the page.
+            "generatr.site.inventory.selectorProperty" "itemId"
+            // Optional page + menu title (default: "Software Item Inventory").
+            "generatr.site.inventory.title" "Software Items (IEC 62304)"
+            // Optional columns: "propertyKey|Column Label", comma-separated.
+            // Label is optional (defaults to the key). Defaults to the selector
+            // property as a single column. Missing values render as "—".
+            "generatr.site.inventory.columns" "itemId|Item ID,classification|Classification,safetyClass|Safety Class"
+        }
+    }
+}
+```
+
+### Behaviour
+
+- The page is only generated (and only appears in the left-hand menu) when `generatr.site.inventory.selectorProperty` is set — otherwise the build is unchanged, so the feature is safe to leave off.
+- Rows cover software systems, containers and components; they are sorted by the selector property value.
+- Each container/component row links to that element's page on the site; software systems flagged external (via `generatr.site.externalTag`) are shown without a link.
+- The fixed leading columns are **Element** (name + link), **Type** (Software System / Container / Component) and **Location** (its parent system/container); the configured property columns follow.
+- The URL is `/<version>/software-items`.
 
 ## Contributing
 
