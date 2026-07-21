@@ -42,7 +42,7 @@ class SoftwareItemInventoryPageViewModelTest : ViewModelTest() {
         val generatorContext = inventoryGeneratorContext()
 
         assertThat(SoftwareItemInventoryPageViewModel.columns(generatorContext.workspace)).containsExactly(
-            SoftwareItemInventoryPageViewModel.InventoryColumn("qmt90.itemId", "qmt90.itemId")
+            SoftwareItemInventoryPageViewModel.InventoryColumn("itemId", "itemId")
         )
     }
 
@@ -51,14 +51,14 @@ class SoftwareItemInventoryPageViewModelTest : ViewModelTest() {
         val generatorContext = inventoryGeneratorContext().apply {
             workspace.views.configuration.addProperty(
                 "generatr.site.inventory.columns",
-                "qmt90.itemId|Item ID, qmt90.classification|Classification, qmt90.safetyClass"
+                "itemId|Item ID, classification|Classification, safetyClass"
             )
         }
 
         assertThat(SoftwareItemInventoryPageViewModel.columns(generatorContext.workspace)).containsExactly(
-            SoftwareItemInventoryPageViewModel.InventoryColumn("qmt90.itemId", "Item ID"),
-            SoftwareItemInventoryPageViewModel.InventoryColumn("qmt90.classification", "Classification"),
-            SoftwareItemInventoryPageViewModel.InventoryColumn("qmt90.safetyClass", "qmt90.safetyClass")
+            SoftwareItemInventoryPageViewModel.InventoryColumn("itemId", "Item ID"),
+            SoftwareItemInventoryPageViewModel.InventoryColumn("classification", "Classification"),
+            SoftwareItemInventoryPageViewModel.InventoryColumn("safetyClass", "safetyClass")
         )
     }
 
@@ -66,11 +66,11 @@ class SoftwareItemInventoryPageViewModelTest : ViewModelTest() {
     fun `lists only elements carrying the selector property, sorted by its value`() {
         val generatorContext = inventoryGeneratorContext()
         val system = generatorContext.workspace.model.addSoftwareSystem("MoRe Care System").apply {
-            addProperty("qmt90.itemId", "SYS-001")
+            addProperty("itemId", "SYS-001")
         }
         val container = system.addContainer("Orchestrator").apply {
-            addProperty("qmt90.itemId", "BE-201")
-            addProperty("qmt90.classification", "HSW-ESS")
+            addProperty("itemId", "BE-201")
+            addProperty("classification", "HSW-ESS")
         }
         container.addComponent("Journal Service") // no selector property, must not appear
         system.addContainer("Unclassified DB") // no selector property, must not appear
@@ -89,16 +89,16 @@ class SoftwareItemInventoryPageViewModelTest : ViewModelTest() {
         val generatorContext = inventoryGeneratorContext().apply {
             workspace.views.configuration.addProperty(
                 "generatr.site.inventory.columns",
-                "qmt90.itemId|Item ID,qmt90.classification|Classification"
+                "itemId|Item ID,classification|Classification"
             )
         }
         val system = generatorContext.workspace.model.addSoftwareSystem("MoRe Care System")
         system.addContainer("Orchestrator").apply {
-            addProperty("qmt90.itemId", "BE-201")
-            addProperty("qmt90.classification", "HSW-ESS")
+            addProperty("itemId", "BE-201")
+            addProperty("classification", "HSW-ESS")
         }
         system.addContainer("Report Generator").apply {
-            addProperty("qmt90.itemId", "BE-501")
+            addProperty("itemId", "BE-501")
         }
 
         val viewModel = SoftwareItemInventoryPageViewModel(generatorContext)
@@ -117,10 +117,10 @@ class SoftwareItemInventoryPageViewModelTest : ViewModelTest() {
         val generatorContext = inventoryGeneratorContext()
         val system = generatorContext.workspace.model.addSoftwareSystem("MoRe Care System")
         val container = system.addContainer("Web Application").apply {
-            addProperty("qmt90.itemId", "FE-000")
+            addProperty("itemId", "FE-000")
         }
         container.addComponent("Threshold Administration Module").apply {
-            addProperty("qmt90.itemId", "FE-201")
+            addProperty("itemId", "FE-201")
         }
 
         val viewModel = SoftwareItemInventoryPageViewModel(generatorContext)
@@ -144,7 +144,7 @@ class SoftwareItemInventoryPageViewModelTest : ViewModelTest() {
         }
         generatorContext.workspace.model.addSoftwareSystem("Keycloak").apply {
             addTags("External System")
-            addProperty("qmt90.itemId", "BE-701")
+            addProperty("itemId", "BE-701")
         }
 
         val viewModel = SoftwareItemInventoryPageViewModel(generatorContext)
@@ -154,6 +154,6 @@ class SoftwareItemInventoryPageViewModelTest : ViewModelTest() {
     }
 
     private fun inventoryGeneratorContext(): GeneratorContext = generatorContext().apply {
-        workspace.views.configuration.addProperty("generatr.site.inventory.selectorProperty", "qmt90.itemId")
+        workspace.views.configuration.addProperty("generatr.site.inventory.selectorProperty", "itemId")
     }
 }
