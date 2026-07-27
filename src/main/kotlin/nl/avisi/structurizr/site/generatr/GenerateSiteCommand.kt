@@ -71,6 +71,15 @@ class GenerateSiteCommand : Subcommand(
         ArgType.String, "exclude-tags", "extags",
         "Comma-separated list of tags to exclude from the generated site"
     ).default("")
+    private val reuseExistingTagSites by option(
+        ArgType.Boolean, "reuse-existing-tag-sites", "reusetags",
+        "When set, a tag whose site directory already exists in the output directory (e.g. restored " +
+            "from a build cache) is neither checked out nor re-rendered: the directory is used as-is " +
+            "and the tag still appears in the version switcher. Only valid because tags are immutable, " +
+            "and only correct when the existing sites were rendered for the same set of branches and " +
+            "tags (the switcher is baked into every page) — a cache key must therefore cover the full " +
+            "version list. Branches are always re-rendered."
+    ).default(value = false)
 
     override fun execute() {
         val siteDir = File(outputDir).apply { mkdirs() }
@@ -118,7 +127,7 @@ class GenerateSiteCommand : Subcommand(
             throw Exception("$defaultBranch does not contain a valid structurizr workspace. Site generation halted.")
         }
 
-        val tagsToGenerate = tagsToGenerate(clonedRepository, workspaceFileInRepo, branchesToGenerate)
+        val tagsToGenerate = tagsToGenerate(clonedRepository, workspaceFileInRepo, branchesToGenerate, siteDir)
 
         branchesToGenerate.forEach { branch ->
             println("Generating site for branch $branch")
@@ -127,16 +136,24 @@ class GenerateSiteCommand : Subcommand(
         }
 
         tagsToGenerate.forEach { tag ->
-            println("Generating site for tag $tag")
-            clonedRepository.checkoutTag(tag)
-            generateSiteForCheckout(clonedRepository, branchesToGenerate, tagsToGenerate, tag, siteDir)
+            if (hasReusableTagSite(siteDir, tag)) {
+                println("Reusing existing site for tag $tag")
+            } else {
+                println("Generating site for tag $tag")
+                clonedRepository.checkoutTag(tag)
+                generateSiteForCheckout(clonedRepository, branchesToGenerate, tagsToGenerate, tag, siteDir)
+            }
         }
     }
+
+    private fun hasReusableTagSite(siteDir: File, tag: String) =
+        reuseExistingTagSites && tagSiteExists(siteDir, tag)
 
     private fun tagsToGenerate(
         clonedRepository: ClonedRepository,
         workspaceFileInRepo: File,
-        branchesToGenerate: List<String>
+        branchesToGenerate: List<String>,
+        siteDir: File
     ): List<String> {
         val tagNames = if (allTags)
             clonedRepository.getTagNames(excludeTags.split(","))
@@ -148,6 +165,12 @@ class GenerateSiteCommand : Subcommand(
         println("The following tags will be checked for Structurizr Workspaces: $tagNames")
 
         return tagNames.filter { tag ->
+            // A reusable site directory proves the tag carried a valid workspace when it
+            // was first rendered; tags are immutable, so skip the checkout + parse.
+            if (hasReusableTagSite(siteDir, tag)) {
+                println("Tag $tag: existing site directory found, reusing without workspace check")
+                return@filter true
+            }
             println("Checking tag $tag")
             try {
                 clonedRepository.checkoutTag(tag)
@@ -202,6 +225,13 @@ class GenerateSiteCommand : Subcommand(
         )
     }
 }
+
+/**
+ * A tag's site directory is considered present (and reusable) when it contains the
+ * home page every rendered version starts with. A bare or partially-written directory
+ * (e.g. an interrupted restore) does not count, so the tag falls back to a full render.
+ */
+fun tagSiteExists(siteDir: File, tag: String) = File(siteDir, tag).resolve("index.html").isFile
 
 fun branchComparator(defaultBranch: String) = Comparator<String> { a, b ->
     if (a == defaultBranch) -1
