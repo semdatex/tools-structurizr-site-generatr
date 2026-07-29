@@ -269,11 +269,41 @@ directory (for example restored from a CI build cache) is neither checked out no
 directory is used as-is and the tag still appears in the version switcher. Branches are always
 re-rendered.
 
-Note that the version switcher is baked into every generated page. A reused tag site is therefore only
+By default the version switcher is baked into every generated page. A reused tag site is then only
 consistent when it was rendered for the same set of branches and tags as the current run — when the
 version set changes (a tag is added or removed), start from an empty output directory instead of reusing
 stale sites. In CI terms: key the cache on the full version list and do not use partial-match restore
-keys.
+keys. Use `--client-side-version-switcher` (below) to remove that restriction.
+
+###### Filling the version switcher in the browser
+
+`--client-side-version-switcher` writes a `versions.json` to the site root and has the switcher filled
+from it at runtime, instead of embedding the branch and tag list in every page. Because the file lives in
+the site root it is rewritten on every run, so *all* versions show the current version list — including
+versions whose pages were not re-rendered.
+
+This is what makes `--reuse-existing-tag-sites` safe across a *changing* version list: a tag's pages no
+longer reference any other version, so a tag site rendered when the site had three versions stays correct
+after a fourth is added. In CI terms: you can cache per tag, keyed on the tag name, and use partial-match
+restore keys — adding a release then only renders the branches plus the new tag.
+
+Two consequences worth knowing:
+
+- The switcher needs JavaScript and one `fetch` of `versions.json`. If it cannot be loaded the dropdown
+  stays empty; the current version is still shown as its label and every other link keeps working.
+- A tag's pages show the tag's own name as their version label instead of the `--version` value, so they
+  do not depend on which build rendered them. Branches keep using `--version`.
+
+```shell
+structurizr-site-generatr generate-site
+    --git-url https://github.com/avisi-cloud/structurizr-site-generatr.git
+    --workspace-file docs/example/workspace.dsl
+    --branches main
+    --default-branch main
+    --tags v1.0.0,v1.1.0
+    --client-side-version-switcher
+    --reuse-existing-tag-sites
+```
 
 ### Start a development web server around the generated website
 

@@ -26,6 +26,21 @@ fun copySiteWideAssets(exportDir: File) {
     copySiteWideAsset(exportDir, "/js/treeview.js")
     copySiteWideAsset(exportDir, "/js/katex-render.js")
     copySiteWideAsset(exportDir, "/js/toggle-theme.js")
+    copySiteWideAsset(exportDir, "/js/version-switcher.js")
+}
+
+/**
+ * Writes the version index consumed by version-switcher.js. A site-root file, rewritten on
+ * every run, so the switcher of *all* versions — including ones whose pages were not
+ * re-rendered this run — reflects the current version list.
+ */
+fun writeVersionsJson(exportDir: File, defaultBranch: String, branches: List<String>, tags: List<String>) {
+    fun quote(value: String) = '"' + value.replace("\\", "\\\\").replace("\"", "\\\"") + '"'
+    fun array(values: List<String>) = values.joinToString(",", "[", "]") { quote(it) }
+
+    File(exportDir, "versions.json").writeText(
+        """{"defaultBranch":${quote(defaultBranch)},"branches":${array(branches)},"tags":${array(tags)}}"""
+    )
 }
 
 private fun copySiteWideAsset(exportDir: File, asset: String) {
@@ -71,7 +86,8 @@ fun generateSite(
     branches: List<String>,
     currentBranch: String,
     serving: Boolean = false,
-    tags: List<String> = emptyList()
+    tags: List<String> = emptyList(),
+    clientSideVersionSwitcher: Boolean = false
 ) {
     val diagramCache = ConcurrentHashMap<String, String>()
     val legendSvgs = generateLegendSvgs(workspace)
@@ -82,7 +98,8 @@ fun generateSite(
                 ?.let { generateDiagramWithElementLinks(workspace, it, url, diagramCache) }
         },
         legendSvgFactory = { key -> legendSvgs[key] },
-        tags = tags
+        tags = tags,
+        clientSideVersionSwitcher = clientSideVersionSwitcher
     )
 
     val branchDir = File(exportDir, currentBranch)

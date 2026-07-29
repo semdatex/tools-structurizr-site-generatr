@@ -11,6 +11,11 @@ fun BODY.pageHeader(viewModel: HeaderBarViewModel) {
         type = ScriptType.textJavaScript,
         src = "../" + "/header.js".asUrlToFile(viewModel.url)
     ) { }
+    if (viewModel.clientSideVersionSwitcher)
+        script(
+            type = ScriptType.textJavaScript,
+            src = "../" + "/version-switcher.js".asUrlToFile(viewModel.url)
+        ) { }
     nav(classes = "navbar") {
         role = "navigation"
         attributes["aria-label"] = "main navigation"
@@ -38,25 +43,37 @@ fun BODY.pageHeader(viewModel: HeaderBarViewModel) {
                         +viewModel.currentBranch
                     }
                     div(classes = "navbar-dropdown is-right") {
-                        viewModel.branches.forEach { branchLink ->
-                            a(
-                                classes = "navbar-item",
-                                href = branchLink.relativeHref
-                            ) {
-                                +branchLink.title
+                        if (viewModel.clientSideVersionSwitcher) {
+                            // Filled by version-switcher.js from versions.json; deliberately
+                            // empty in the generated HTML so this page carries no reference to
+                            // the other versions of the site.
+                            div {
+                                id = "version-switcher-items"
+                                attributes["data-versions-url"] =
+                                    "../" + "/versions.json".asUrlToFile(viewModel.url)
+                                attributes["data-current-version"] = viewModel.currentBranch
                             }
-                        }
-                        if (viewModel.tags.isNotEmpty()) {
-                            hr(classes = "navbar-divider")
-                            div(classes = "navbar-item has-text-grey-light") {
-                                +"Tags"
-                            }
-                            viewModel.tags.forEach { tagLink ->
+                        } else {
+                            viewModel.branches.forEach { branchLink ->
                                 a(
                                     classes = "navbar-item",
-                                    href = tagLink.relativeHref
+                                    href = branchLink.relativeHref
                                 ) {
-                                    +tagLink.title
+                                    +branchLink.title
+                                }
+                            }
+                            if (viewModel.tags.isNotEmpty()) {
+                                hr(classes = "navbar-divider")
+                                div(classes = "navbar-item has-text-grey-light") {
+                                    +"Tags"
+                                }
+                                viewModel.tags.forEach { tagLink ->
+                                    a(
+                                        classes = "navbar-item",
+                                        href = tagLink.relativeHref
+                                    ) {
+                                        +tagLink.title
+                                    }
                                 }
                             }
                         }
