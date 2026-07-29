@@ -1,7 +1,9 @@
 FROM eclipse-temurin:21.0.10_7-jre-jammy
 
 USER root
-RUN apt update && apt install graphviz --yes && rm -rf /var/lib/apt/lists/*
+# zstd: consumers run actions/cache inside this container (tag-site build cache);
+# without zstd the cache action falls back to much slower gzip archives.
+RUN apt update && apt install graphviz zstd --yes && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /var/model \
     && chown 65532:65532 /var/model
 RUN useradd -d /home/generatr -u 65532 --create-home generatr

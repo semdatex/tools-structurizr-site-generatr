@@ -261,6 +261,20 @@ Both the --tags and --exclude-tags options are comma separated lists and can con
 Tags that don't contain a valid Structurizr workspace are skipped, as are tags whose name collides with an
 included branch.
 
+###### Reusing previously rendered tag sites
+
+Tags are immutable, so their rendered sites never change — but by default every run re-renders all of
+them. With `--reuse-existing-tag-sites`, a tag whose site directory already exists in the output
+directory (for example restored from a CI build cache) is neither checked out nor re-rendered: the
+directory is used as-is and the tag still appears in the version switcher. Branches are always
+re-rendered.
+
+Note that the version switcher is baked into every generated page. A reused tag site is therefore only
+consistent when it was rendered for the same set of branches and tags as the current run — when the
+version set changes (a tag is added or removed), start from an empty output directory instead of reusing
+stale sites. In CI terms: key the cache on the full version list and do not use partial-match restore
+keys.
+
 ### Start a development web server around the generated website
 
 To aid composition of [C4 Workspace DSL files](https://docs.structurizr.com/dsl), the `serve` command will
