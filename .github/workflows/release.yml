@@ -1,15 +1,79 @@
+# Publishes a release: container image (ghcr.io), signed and SBOM'd, a draft
+# GitHub release with the distribution archives, and the example site.
+#
+# Two ways in:
+#   * push a tag        — the classic path, tag already exists, unchanged.
+#   * run this workflow — pick a branch/commit and pass the tag name; the tag is
+#     created at the end (by `gh release create --target`), only after tests and
+#     the image publish succeeded, so a failed run leaves no dangling tag.
+#
+# The dispatch path exists because cutting a release otherwise requires local
+# push rights for tag refs. Everything downstream keys off the *resolved*
+# version (see the resolve-version job), never github.ref_name, which on a
+# dispatch is the branch rather than the tag.
 name: release
 on:
   push:
     tags:
       - '*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create and publish, e.g. 1.6.1-tags-inventory-reuse (created on the branch/commit selected above)'
+        required: true
+        type: string
 
 env:
   IMAGE_NAME: ${{ github.event.repository.name }}
 
 jobs:
+  # The version string used as the image tag, the Gradle project version, the
+  # site version and the release name. On a tag push that is the pushed tag; on
+  # a dispatch it is the requested tag name, validated before anything is built.
+  resolve-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - name: Resolve and validate the version
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          PUSHED_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != "workflow_dispatch" ]; then
+            echo "version=$PUSHED_TAG" >> "$GITHUB_OUTPUT"
+            echo "Releasing pushed tag $PUSHED_TAG"
+            exit 0
+          fi
+
+          # The tag name becomes an image tag and a git ref, so keep it to
+          # characters both accept without quoting surprises.
+          case "$INPUT_TAG" in
+            '' | *[!A-Za-z0-9._-]* )
+              echo "::error::Invalid tag '$INPUT_TAG': use letters, digits, dot, underscore and dash only." >&2
+              exit 1
+              ;;
+          esac
+
+          # Never re-publish over an existing tag: its image is already out
+          # there and may be pinned by consumers.
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${INPUT_TAG}" >/dev/null 2>&1; then
+            echo "::error::Tag $INPUT_TAG already exists; pick a new version." >&2
+            exit 1
+          fi
+
+          echo "version=$INPUT_TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing $INPUT_TAG from ${GITHUB_REF_NAME} (${GITHUB_SHA})"
+
   build-gradle:
     runs-on: ubuntu-latest
+    needs: resolve-version
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -21,7 +85,7 @@ jobs:
       - name: Ensure browsers are installed
         run: ./gradlew playwright -Pargs="install --with-deps"
       - name: Execute Gradle build
-        run: ./gradlew -PprojectVersion=${{ github.ref_name }} test assemble installDist
+        run: ./gradlew -PprojectVersion=${{ needs.resolve-version.outputs.version }} test assemble installDist
       - name: Archive binaries
         uses: actions/upload-artifact@v7
         with:
@@ -36,7 +100,9 @@ jobs:
           retention-days: 1
   build-push-docker:
     runs-on: ubuntu-latest
-    needs: build-gradle
+    needs: [resolve-version, build-gradle]
+    env:
+      VERSION: ${{ needs.resolve-version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -74,7 +140,7 @@ jobs:
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64/v8
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
             ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
           labels: |
             org.opencontainers.image.title=${{ github.event.repository.name }}
@@ -82,11 +148,11 @@ jobs:
             org.opencontainers.image.url=${{ github.event.repository.html_url }}
             org.opencontainers.image.source=${{ github.event.repository.html_url }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.version=${{ env.VERSION }}
       - name: sign container image
         if: ${{ env.COSIGN_KEY != '' }}
         run: |
-          cosign sign --yes --key env://COSIGN_KEY ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}@${{ steps.build_push.outputs.digest }}
+          cosign sign --yes --key env://COSIGN_KEY ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${VERSION}@${{ steps.build_push.outputs.digest }}
         shell: bash
         env:
           COSIGN_KEY: ${{secrets.COSIGN_KEY}}
@@ -94,20 +160,27 @@ jobs:
 
       - name: Check images
         run: |
-          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}:${{ github.ref_name }}
-          docker pull ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}:${{ github.ref_name }}
+          docker buildx imagetools inspect ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}:${VERSION}
+          docker pull ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}:${VERSION}
       - name: Verify container image signature
         if: ${{ env.COSIGN_KEY != '' }}
-        run: cosign verify --key cosign.pub ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}:${{ github.ref_name }}
+        run: cosign verify --key cosign.pub ghcr.io/${{ github.repository_owner }}/${IMAGE_NAME}:${VERSION}
         env:
           COSIGN_KEY: ${{secrets.COSIGN_KEY}}
       - uses: anchore/sbom-action@v0
         with:
-          image: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
+          image: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ env.VERSION }}
 
+  # Also waits for build-push-docker (it only needed build-gradle before): this
+  # job creates the tag on the dispatch path, and a tag must not appear unless
+  # its image was actually published.
   create-draft-release:
     runs-on: ubuntu-latest
-    needs: build-gradle
+    needs: [resolve-version, build-gradle, build-push-docker]
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.resolve-version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -118,21 +191,25 @@ jobs:
           name: distribution
           path: build/distributions
 
+      # --target creates the tag when it doesn't exist yet (the dispatch path),
+      # pointing at the commit this run was started from. On a tag push the tag
+      # already exists and --target is ignored, so both paths share this step.
       - name: Create Release Draft
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create ${{ github.ref_name }} \
+          gh release create "$VERSION" \
             --draft \
-            --title "${{ github.ref_name }}"
+            --title "$VERSION" \
+            --target "$GITHUB_SHA"
       - name: Upload Release Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ github.ref_name }} ./build/distributions/*
+        run: gh release upload "$VERSION" ./build/distributions/*
 
   generate-example-site:
     runs-on: ubuntu-latest
-    needs: build-gradle
+    needs: [resolve-version, build-gradle]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -160,7 +237,7 @@ jobs:
           --assets-dir docs/example/assets
           --branches main
           --default-branch main
-          --version ${{ github.ref_name }}
+          --version ${{ needs.resolve-version.outputs.version }}
 
       - name: Upload example site as GitHub Pages artifact
         uses: actions/upload-pages-artifact@v5
