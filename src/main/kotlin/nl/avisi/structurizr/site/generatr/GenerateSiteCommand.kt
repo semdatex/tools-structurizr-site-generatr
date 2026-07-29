@@ -71,6 +71,16 @@ class GenerateSiteCommand : Subcommand(
         ArgType.String, "exclude-tags", "extags",
         "Comma-separated list of tags to exclude from the generated site"
     ).default("")
+    private val clientSideVersionSwitcher by option(
+        ArgType.Boolean, "client-side-version-switcher", "clientswitcher",
+        "When set, pages do not embed the branch/tag list: a versions.json is written to the " +
+            "site root and the version switcher is filled from it in the browser. A version's " +
+            "pages then no longer depend on which other versions the site carries, so adding or " +
+            "removing versions does not require re-rendering them — which is what makes " +
+            "--reuse-existing-tag-sites safe across a changing version list. With this set, a " +
+            "tag's pages show the tag name as their version label instead of --version, so they " +
+            "stay identical no matter which build rendered them."
+    ).default(value = false)
     private val reuseExistingTagSites by option(
         ArgType.Boolean, "reuse-existing-tag-sites", "reusetags",
         "When set, a tag whose site directory already exists in the output directory (e.g. restored " +
@@ -128,6 +138,11 @@ class GenerateSiteCommand : Subcommand(
         }
 
         val tagsToGenerate = tagsToGenerate(clonedRepository, workspaceFileInRepo, branchesToGenerate, siteDir)
+
+        // Written after the version list is known, and on every run — reused versions get their
+        // switcher from here rather than from their own (possibly older) HTML.
+        if (clientSideVersionSwitcher)
+            writeVersionsJson(siteDir, defaultBranch, branchesToGenerate, tagsToGenerate)
 
         branchesToGenerate.forEach { branch ->
             println("Generating site for branch $branch")
@@ -201,27 +216,39 @@ class GenerateSiteCommand : Subcommand(
         writeStructurizrJson(workspace, File(siteDir, refName))
         generateDiagrams(workspace, File(siteDir, refName))
         generateSite(
-            version,
+            versionLabelFor(refName, tagsToGenerate),
             workspace,
             assetsDir?.let { File(clonedRepository.cloneDir, it) },
             siteDir,
             branchesToGenerate,
             refName,
-            tags = tagsToGenerate
+            tags = tagsToGenerate,
+            clientSideVersionSwitcher = clientSideVersionSwitcher
         )
     }
+
+    /**
+     * --version is the ref that triggered the build, which is fine for a branch but ties a tag's
+     * pages to *when* they were rendered. With the client-side switcher — where a tag's pages are
+     * meant to be reusable across builds — a tag therefore labels itself with its own name.
+     */
+    private fun versionLabelFor(refName: String, tagsToGenerate: List<String>) =
+        if (clientSideVersionSwitcher && refName in tagsToGenerate) refName else version
 
     private fun generateSiteForModel(siteDir: File) {
         val workspace = createStructurizrWorkspace(File(workspaceFile))
         writeStructurizrJson(workspace, File(siteDir, defaultBranch))
         generateDiagrams(workspace, File(siteDir, defaultBranch))
+        if (clientSideVersionSwitcher)
+            writeVersionsJson(siteDir, defaultBranch, listOf(defaultBranch), emptyList())
         generateSite(
             version,
             workspace,
             assetsDir?.let { File(it) },
             siteDir,
             listOf(defaultBranch),
-            defaultBranch
+            defaultBranch,
+            clientSideVersionSwitcher = clientSideVersionSwitcher
         )
     }
 }

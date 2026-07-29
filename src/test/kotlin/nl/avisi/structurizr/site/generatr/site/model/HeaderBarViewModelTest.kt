@@ -123,4 +123,25 @@ class HeaderBarViewModelTest : ViewModelTest() {
             assertThat(viewModel.allowToggleTheme).isEqualTo(allowToggle)
         }
     }
+
+    @Test
+    fun `client side version switcher is off by default`() {
+        val viewModel = HeaderBarViewModel(pageViewModel, generatorContext)
+
+        assertThat(viewModel.clientSideVersionSwitcher).isFalse()
+    }
+
+    @Test
+    fun `client side version switcher is exposed when enabled`() {
+        val context = generatorContext(
+            "some workspace", branches = listOf("main"), tags = listOf("v1.0.0"),
+            clientSideVersionSwitcher = true
+        )
+        val viewModel = HeaderBarViewModel(object : PageViewModel(context) {
+            override val url: String = "/master/system"
+            override val pageSubTitle: String = "subtitle"
+        }, context)
+
+        assertThat(viewModel.clientSideVersionSwitcher).isTrue()
+    }
 }

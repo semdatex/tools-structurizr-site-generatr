@@ -17,6 +17,12 @@ class HeaderBarViewModel(pageViewModel: PageViewModel, generatorContext: Generat
     val showVersion = version.isNotBlank()
     val allowToggleTheme = pageViewModel.allowToggleTheme
 
+    /**
+     * When set, the switcher entries are omitted from the page and filled at runtime from
+     * versions.json by version-switcher.js. See GeneratorContext.clientSideVersionSwitcher.
+     */
+    val clientSideVersionSwitcher = generatorContext.clientSideVersionSwitcher
+
     private fun logoPath(generatorContext: GeneratorContext) =
         generatorContext.workspace.views.configuration.properties
             .getOrDefault(
