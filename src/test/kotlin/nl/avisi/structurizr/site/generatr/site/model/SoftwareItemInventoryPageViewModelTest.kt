@@ -113,6 +113,87 @@ class SoftwareItemInventoryPageViewModelTest : ViewModelTest() {
     }
 
     @Test
+    fun `description pseudo-column renders the element description`() {
+        val generatorContext = inventoryGeneratorContext().apply {
+            workspace.views.configuration.addProperty(
+                "generatr.site.inventory.columns",
+                "itemId|Item ID,description|Description / Intended Purpose"
+            )
+        }
+        val system = generatorContext.workspace.model.addSoftwareSystem("MoRe Care System")
+        system.addContainer("Orchestrator", "Orchestrates the IDCO processing pipeline").apply {
+            addProperty("itemId", "BE-201")
+        }
+        system.addContainer("Mystery Box").apply {
+            addProperty("itemId", "BE-999")
+        }
+
+        val viewModel = SoftwareItemInventoryPageViewModel(generatorContext)
+
+        val row1 = viewModel.inventoryTable.bodyRows[0].columns
+        val row2 = viewModel.inventoryTable.bodyRows[1].columns
+        assertThat((row1[4] as TableViewModel.TextCellViewModel).title)
+            .isEqualTo("Orchestrates the IDCO processing pipeline")
+        assertThat((row2[4] as TableViewModel.TextCellViewModel).title).isEqualTo("—")
+        assertThat((row2[4] as TableViewModel.TextCellViewModel).greyText).isTrue()
+    }
+
+    @Test
+    fun `description column prefers an element property named description`() {
+        val generatorContext = inventoryGeneratorContext().apply {
+            workspace.views.configuration.addProperty(
+                "generatr.site.inventory.columns", "description|Description"
+            )
+        }
+        generatorContext.workspace.model.addSoftwareSystem("MoRe Care System", "Element description").apply {
+            addProperty("itemId", "SYS-001")
+            addProperty("description", "Property description wins")
+        }
+
+        val viewModel = SoftwareItemInventoryPageViewModel(generatorContext)
+
+        val row = viewModel.inventoryTable.bodyRows.single().columns
+        assertThat((row[3] as TableViewModel.TextCellViewModel).title).isEqualTo("Property description wins")
+    }
+
+    @Test
+    fun `colored columns render badges from the element style matching the cell value`() {
+        val generatorContext = inventoryGeneratorContext().apply {
+            workspace.views.configuration.addProperty(
+                "generatr.site.inventory.columns",
+                "itemId|Item ID,classification|Classification"
+            )
+            workspace.views.configuration.addProperty(
+                "generatr.site.inventory.coloredColumns", "classification"
+            )
+            workspace.views.configuration.styles.addElementStyle("HSW-ESS").apply {
+                background = "#fff176"
+                color = "#333333"
+            }
+        }
+        val system = generatorContext.workspace.model.addSoftwareSystem("MoRe Care System")
+        system.addContainer("Orchestrator").apply {
+            addProperty("itemId", "BE-201")
+            addProperty("classification", "HSW-ESS")
+        }
+        system.addContainer("Report Generator").apply {
+            addProperty("itemId", "BE-501")
+            addProperty("classification", "UNSTYLED")
+        }
+
+        val viewModel = SoftwareItemInventoryPageViewModel(generatorContext)
+
+        val row1 = viewModel.inventoryTable.bodyRows[0].columns
+        val row2 = viewModel.inventoryTable.bodyRows[1].columns
+        val badge = row1[4] as TableViewModel.BadgeCellViewModel
+        assertThat(badge.title).isEqualTo("HSW-ESS")
+        assertThat(badge.backgroundColor).isEqualTo("#fff176")
+        assertThat(badge.textColor).isEqualTo("#333333")
+        // no element style for the value -> plain text cell
+        assertThat((row2[4] as TableViewModel.TextCellViewModel).title).isEqualTo("UNSTYLED")
+    }
+
+    @Test
     fun `container and component rows link to the container components page`() {
         val generatorContext = inventoryGeneratorContext()
         val system = generatorContext.workspace.model.addSoftwareSystem("MoRe Care System")

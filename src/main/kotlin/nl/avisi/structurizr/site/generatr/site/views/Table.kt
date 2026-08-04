@@ -66,5 +66,18 @@ private fun TR.cell(viewModel: TableViewModel.CellViewModel) {
                 th { externalLink(viewModel.link) }
             else
                 td { externalLink(viewModel.link) }
+        is TableViewModel.BadgeCellViewModel ->
+            if (viewModel.isHeader)
+                th { badge(viewModel) }
+            else
+                td { badge(viewModel) }
+    }
+}
+
+private fun FlowOrPhrasingContent.badge(viewModel: TableViewModel.BadgeCellViewModel) {
+    span(classes = "tag") {
+        attributes["style"] =
+            "background-color: ${viewModel.backgroundColor}; color: ${viewModel.textColor};"
+        +viewModel.title
     }
 }

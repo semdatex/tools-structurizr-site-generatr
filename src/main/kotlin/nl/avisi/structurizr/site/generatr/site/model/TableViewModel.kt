@@ -43,6 +43,16 @@ data class TableViewModel(val headerRows: List<RowViewModel>, val bodyRows: List
         override fun toString() = if (isHeader) "headerCell($link)" else "cell($link)"
     }
 
+    data class BadgeCellViewModel(
+        val title: String,
+        val backgroundColor: String,
+        val textColor: String,
+        override val isHeader: Boolean = false
+    ) : CellViewModel {
+        override fun toString() =
+            "badgeCell($title, background=$backgroundColor, color=$textColor)"
+    }
+
     data class RowViewModel(val columns: List<CellViewModel>) {
         override fun toString() =
             columns.joinToString(separator = ", ", prefix = "row { ", postfix = " }") { it.toString() }
@@ -81,6 +91,8 @@ data class TableViewModel(val headerRows: List<RowViewModel>, val bodyRows: List
             LinkCellViewModel(LinkViewModel(pageViewModel, title, href), false, boldText = true)
         fun cellWithExternalLink(title: String, href: String) =
             ExternalLinkCellViewModel(ExternalLinkViewModel(title, href), false)
+        fun cellWithBadge(title: String, backgroundColor: String, textColor: String) =
+            BadgeCellViewModel(title, backgroundColor, textColor, false)
     }
 
     override fun toString(): String {
