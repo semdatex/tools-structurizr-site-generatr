@@ -326,7 +326,8 @@ architecture model:
 | `generatr.site.theme`                   | Experimental: allows to force a light or dark theme or allows to switch between light and dark mode on the website with browser preference or menu item. Possible values are 'light', 'dark' or 'auto'. Note that the 'structurizr' exporter (see 'generatr.site.exporter' setting) generally works better for the dark theme.                   | `light`                        | `auto`                                               |
 | `generatr.site.inventory.selectorProperty` | Enables a workspace-wide "software item inventory" page listing every software system, container and component that carries the given element property. Useful for e.g. an IEC 62304 software item inventory with safety classifications, generated straight from the model.                                                                  |                                | `itemId`                                       |
 | `generatr.site.inventory.title`         | Title of the software item inventory page (also used as the menu entry).                                                                                                                                                                                                                                                                         | `Software Item Inventory`      | `Software Items (IEC 62304)`                         |
-| `generatr.site.inventory.columns`       | Columns of the inventory table: a comma-separated list of `elementPropertyKey\|Column Label` entries (label optional, defaults to the key). Each listed element property is rendered as one column; missing values render as "—".                                                                                                                | the selector property          | `itemId\|Item ID,classification\|Class`  |
+| `generatr.site.inventory.columns`       | Columns of the inventory table: a comma-separated list of `elementPropertyKey\|Column Label` entries (label optional, defaults to the key). Each listed element property is rendered as one column; missing values render as "—". The reserved key `description` renders the element description (an element property named `description` wins if present).                | the selector property          | `itemId\|Item ID,description\|Description,classification\|Class`  |
+| `generatr.site.inventory.coloredColumns` | Comma-separated list of column (property) keys whose cells render as colored badges. The badge takes background/text color from the element style whose tag equals the cell value, so the table matches the diagram color coding.                                                                                                              |                                | `classification`                                     |
 
 To control the behavior of views, apply the following properties:
 
@@ -370,7 +371,12 @@ workspace {
             // Optional columns: "propertyKey|Column Label", comma-separated.
             // Label is optional (defaults to the key). Defaults to the selector
             // property as a single column. Missing values render as "—".
-            "generatr.site.inventory.columns" "itemId|Item ID,classification|Classification,safetyClass|Safety Class"
+            // The reserved key "description" renders the element description.
+            "generatr.site.inventory.columns" "itemId|Item ID,description|Description,classification|Classification,safetyClass|Safety Class"
+            // Optional: render these columns as colored badges, using the element
+            // style whose tag equals the cell value (e.g. an element style for the
+            // "HSW-ESS" tag colors every HSW-ESS classification cell).
+            "generatr.site.inventory.coloredColumns" "classification"
         }
     }
 }
@@ -382,6 +388,8 @@ workspace {
 - Rows cover software systems, containers and components; they are sorted by the selector property value.
 - Each container/component row links to that element's page on the site; software systems flagged external (via `generatr.site.externalTag`) are shown without a link.
 - The fixed leading columns are **Element** (name + link), **Type** (Software System / Container / Component) and **Location** (its parent system/container); the configured property columns follow.
+- The column key `description` is reserved: it renders the element description (an element property literally named `description` takes precedence). Blank descriptions render as "—".
+- Columns listed in `generatr.site.inventory.coloredColumns` render as colored badges when an element style exists whose tag equals the cell value; cells without a matching style stay plain text.
 - The URL is `/<version>/software-items`.
 
 ## Contributing

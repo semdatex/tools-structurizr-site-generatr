@@ -18,7 +18,11 @@ import nl.avisi.structurizr.site.generatr.site.GeneratorContext
  * item is marked with an identity property and the inventory renders one table row per item.
  *
  * The page is enabled by setting `generatr.site.inventory.selectorProperty` in the workspace view
- * configuration. Columns are configured through `generatr.site.inventory.columns`.
+ * configuration. Columns are configured through `generatr.site.inventory.columns`; the pseudo-key
+ * `description` renders the element description. Columns listed in
+ * `generatr.site.inventory.coloredColumns` are rendered as colored badges, taking the background
+ * and text color from the element style whose tag equals the cell value — so e.g. a classification
+ * column matches the classification colors of the diagrams.
  */
 class SoftwareItemInventoryPageViewModel(generatorContext: GeneratorContext) : PageViewModel(generatorContext) {
     override val url = url()
@@ -30,6 +34,7 @@ class SoftwareItemInventoryPageViewModel(generatorContext: GeneratorContext) : P
             "$SELECTOR_PROPERTY must be set in the workspace view configuration to generate the inventory page"
         }
         val columns = columns(workspace)
+        val coloredColumns = coloredColumns(workspace)
 
         headerRow(
             headerCellMedium("Element"),
@@ -44,7 +49,9 @@ class SoftwareItemInventoryPageViewModel(generatorContext: GeneratorContext) : P
                     elementCell(element),
                     cell(element.typeName),
                     cell(element.location),
-                    *columns.map { column -> propertyCell(element, column.key) }.toTypedArray()
+                    *columns.map { column ->
+                        propertyCell(element, column.key, coloredColumns.contains(column.key))
+                    }.toTypedArray()
                 )
             }
     }
@@ -85,10 +92,28 @@ class SoftwareItemInventoryPageViewModel(generatorContext: GeneratorContext) : P
 
     private fun TableViewModel.TableViewInitializerContext.propertyCell(
         element: StaticStructureElement,
-        propertyKey: String
-    ) = element.properties[propertyKey]
-        ?.let { cell(it) }
-        ?: cell("—", greyText = true)
+        propertyKey: String,
+        colored: Boolean = false
+    ): TableViewModel.CellViewModel {
+        val value = propertyValue(element, propertyKey)
+            ?: return cell("—", greyText = true)
+        if (colored) {
+            val style = generatorContext.workspace.views.configuration.styles.elements
+                .firstOrNull { it.tag == value && it.background != null }
+            if (style != null)
+                return cellWithBadge(value, checkNotNull(style.background), style.color ?: "#000000")
+        }
+        return cell(value)
+    }
+
+    /**
+     * Resolves a column key on an element: an element property of that name wins; the reserved
+     * key `description` falls back to the element description (blank descriptions render as
+     * a missing value).
+     */
+    private fun propertyValue(element: StaticStructureElement, propertyKey: String): String? =
+        element.properties[propertyKey]
+            ?: element.description.takeIf { propertyKey == DESCRIPTION_COLUMN_KEY && !it.isNullOrBlank() }
 
     private fun Container.hasComponentsPage(workspace: Workspace) =
         workspace.hasComponentDiagrams(this) || includedProperties.isNotEmpty() || workspace.hasImageViews(id)
@@ -114,6 +139,8 @@ class SoftwareItemInventoryPageViewModel(generatorContext: GeneratorContext) : P
         private const val SELECTOR_PROPERTY = "generatr.site.inventory.selectorProperty"
         private const val TITLE_PROPERTY = "generatr.site.inventory.title"
         private const val COLUMNS_PROPERTY = "generatr.site.inventory.columns"
+        private const val COLORED_COLUMNS_PROPERTY = "generatr.site.inventory.coloredColumns"
+        const val DESCRIPTION_COLUMN_KEY = "description"
 
         fun url() = "/software-items"
 
@@ -143,5 +170,17 @@ class SoftwareItemInventoryPageViewModel(generatorContext: GeneratorContext) : P
             .ifEmpty {
                 selectorProperty(workspace)?.let { listOf(InventoryColumn(it, it)) }.orEmpty()
             }
+
+        /**
+         * Parses `generatr.site.inventory.coloredColumns`: a comma-separated list of column
+         * (property) keys whose cells are rendered as colored badges based on the element style
+         * whose tag equals the cell value.
+         */
+        fun coloredColumns(workspace: Workspace): Set<String> = workspace.views.configuration.properties
+            .getOrDefault(COLORED_COLUMNS_PROPERTY, "")
+            .split(",")
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toSet()
     }
 }
